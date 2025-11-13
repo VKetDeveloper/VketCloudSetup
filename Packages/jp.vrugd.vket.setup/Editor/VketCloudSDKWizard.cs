@@ -4,8 +4,9 @@ using System;
 using System.IO;
 using System.Linq;
 using Newtonsoft.Json.Linq;
-using UnityEditor.Rendering; // ShaderQualitySettings 用
-using UnityEditorInternal;   // LightmapEditorSettings 用
+using UnityEditor.SceneManagement;
+using UnityEditor.Rendering; // TierSettings
+using UnityEngine.Rendering;
 
 public class VketCloudSDKWizard : EditorWindow
 {
@@ -18,6 +19,10 @@ public class VketCloudSDKWizard : EditorWindow
 
     private const string PackageName = "com.hikky.vketcloudsdk-install-wizard";
     private const string RequiredPackageVersion = "1.0.0";
+
+    // 追加パッケージ（自動追加）
+    private const string DeepLinkName = "com.needle.deeplink";
+    private const string DeepLinkURL = "https://github.com/needle-tools/unity-deeplink.git?path=/package";
 
     private const string RequiredUnityVersionDisplay = "Unity 6.0.0f1 以上";
 
@@ -67,8 +72,6 @@ public class VketCloudSDKWizard : EditorWindow
     }
 
     // ------------------------------------------------------------------
-    // OnEnable
-    // ------------------------------------------------------------------
     private void OnEnable()
     {
         manifestPath = Path.Combine(Application.dataPath, "../Packages/manifest.json");
@@ -81,8 +84,6 @@ public class VketCloudSDKWizard : EditorWindow
         }
     }
 
-    // ------------------------------------------------------------------
-    // Manifest 読み込み
     // ------------------------------------------------------------------
     private void LoadManifestJson()
     {
@@ -105,8 +106,6 @@ public class VketCloudSDKWizard : EditorWindow
         }
     }
 
-    // ------------------------------------------------------------------
-    // GUI 初期化
     // ------------------------------------------------------------------
     private void InitGUI()
     {
@@ -135,7 +134,6 @@ public class VketCloudSDKWizard : EditorWindow
             normal = { textColor = Color.white }
         };
         buttonPrimary.normal.background = MakeTex(4, 4, new Color(0.35f, 0.45f, 1f));
-
         buttonPrimary.hover.background = MakeTex(4, 4, new Color(0.45f, 0.55f, 1f));
 
         buttonSecondary = new GUIStyle(GUI.skin.button)
@@ -167,8 +165,6 @@ public class VketCloudSDKWizard : EditorWindow
         return tex;
     }
 
-    // ------------------------------------------------------------------
-    // OnGUI
     // ------------------------------------------------------------------
     private void OnGUI()
     {
@@ -215,8 +211,6 @@ public class VketCloudSDKWizard : EditorWindow
     }
 
     // ------------------------------------------------------------------
-    // Header
-    // ------------------------------------------------------------------
     private void DrawHeader()
     {
         Rect rect = GUILayoutUtility.GetRect(0, 40);
@@ -239,13 +233,13 @@ public class VketCloudSDKWizard : EditorWindow
             spinnerIndex = (spinnerIndex + 1) % 12;
         }
 
-        GUI.DrawTexture(rect,
+        GUI.DrawTexture(
+            rect,
             EditorGUIUtility.IconContent($"WaitSpin{spinnerIndex:00}").image,
-            ScaleMode.ScaleToFit);
+            ScaleMode.ScaleToFit
+        );
     }
 
-    // ------------------------------------------------------------------
-    // STEP 1
     // ------------------------------------------------------------------
     private void DrawStep1_UnityCheck()
     {
@@ -261,13 +255,9 @@ public class VketCloudSDKWizard : EditorWindow
         GUILayout.Space(8);
 
         if (unityVersionOK)
-        {
             EditorGUILayout.LabelField("✔ Unity バージョンは要件を満たしています", badgeOK);
-        }
         else
-        {
             EditorGUILayout.LabelField("⚠ Unity 6.0.0f1 以上が必要です", badgeNG);
-        }
     }
 
     private bool IsUnity6OrNewer()
@@ -276,8 +266,6 @@ public class VketCloudSDKWizard : EditorWindow
         return v.StartsWith("6000.") || v.StartsWith("6.0.");
     }
 
-    // ------------------------------------------------------------------
-    // STEP 2：Scoped Registry
     // ------------------------------------------------------------------
     private void DrawStep2_Registry()
     {
@@ -300,7 +288,6 @@ public class VketCloudSDKWizard : EditorWindow
         else
         {
             EditorGUILayout.LabelField("⚠ Scoped Registry が見つかりません", badgeNG);
-
             GUILayout.Space(8);
 
             if (GUILayout.Button("Scoped Registry を追加する", buttonPrimary, GUILayout.Height(32)))
@@ -317,13 +304,25 @@ public class VketCloudSDKWizard : EditorWindow
                     scoped.Add(reg);
                     manifestJson["scopedRegistries"] = scoped;
                     File.WriteAllText(manifestPath, manifestJson.ToString());
+
+                    // ★ DeepLink パッケージも追加
+                    var deps = manifestJson["dependencies"] as JObject;
+                    if (deps != null)
+                    {
+                        if (deps[DeepLinkName] == null)
+                        {
+                            deps[DeepLinkName] = DeepLinkURL;
+                            File.WriteAllText(manifestPath, manifestJson.ToString());
+                        }
+                    }
+
                     AssetDatabase.Refresh();
                     registryOK = true;
 
-                    // ★ 再起動確認
+                    // 再起動確認
                     bool restart = EditorUtility.DisplayDialog(
                         "Unity を再起動しますか？",
-                        "Scoped Registry を追加しました。\n再起動前にプロジェクト設定を推奨値に調整します。\n\n今すぐ Unity を再起動しますか？",
+                        "Scoped Registry と DeepLink を追加しました。\n推奨プロジェクト設定を適用して再起動します。\n\nUnity を再起動しますか？",
                         "再起動する",
                         "キャンセル"
                     );
@@ -342,8 +341,6 @@ public class VketCloudSDKWizard : EditorWindow
         }
     }
 
-    // ------------------------------------------------------------------
-    // STEP 3：Package
     // ------------------------------------------------------------------
     private void DrawStep3_Package()
     {
@@ -389,8 +386,6 @@ public class VketCloudSDKWizard : EditorWindow
         }
     }
 
-    // ------------------------------------------------------------------
-    // STEP 4：完了
     // ------------------------------------------------------------------
     private void DrawStep4_Finish()
     {
@@ -441,8 +436,6 @@ public class VketCloudSDKWizard : EditorWindow
     }
 
     // ------------------------------------------------------------------
-    // STEP 操作
-    // ------------------------------------------------------------------
     private void DrawStepButtons()
     {
         GUILayout.BeginHorizontal();
@@ -477,8 +470,6 @@ public class VketCloudSDKWizard : EditorWindow
     }
 
     // ------------------------------------------------------------------
-    // Utility
-    // ------------------------------------------------------------------
     private int ComparePackageVersion(string a, string b)
     {
         try
@@ -505,36 +496,85 @@ public class VketCloudSDKWizard : EditorWindow
     }
 
     // ------------------------------------------------------------------
-    // ★ 再起動前にプロジェクト設定を自動調整
+    // ★ Unity 6000 対応：再起動前にプロジェクト設定を自動調整
     // ------------------------------------------------------------------
     private void ApplyProjectSettingsBeforeRestart()
     {
         try
         {
-            Debug.Log("[Wizard] Applying recommended graphics settings before restart...");
+            Debug.Log("[Wizard] Applying recommended project settings (Unity 6000)...");
 
-            // Standard Shader Quality = Medium (LOD300)
-            ShaderQualitySettings.SetGlobalMaximumLOD(300);
-
-            // Lightmap Encoding = Normal
-            LightmapEditorSettings.encoding = LightmapEncoding.Normal;
-
-            // Color Space = Linear (必要時)
+            // ------------------------------------------------------
+            // 1. Color Space → Linear（再インポート無し）
+            // ------------------------------------------------------
             if (PlayerSettings.colorSpace != ColorSpace.Linear)
             {
+                Debug.Log("[Wizard] Switching ColorSpace → Linear");
                 PlayerSettings.colorSpace = ColorSpace.Linear;
             }
 
+            // ------------------------------------------------------
+            // 2. Standard Shader Quality → Medium
+            // ------------------------------------------------------
+            Debug.Log("[Wizard] Setting Standard Shader Quality → Medium");
+
+            var buildTarget = EditorUserBuildSettings.activeBuildTarget;
+
+            for (int tier = 0; tier < 3; tier++)
+            {
+                var settings = EditorGraphicsSettings.GetTierSettings(buildTarget, (GraphicsTier)tier);
+                settings.standardShaderQuality = ShaderQuality.Medium;
+                EditorGraphicsSettings.SetTierSettings(buildTarget, (GraphicsTier)tier, settings);
+            }
+
+            // ------------------------------------------------------
+            // 3. LightingSettings（Unity 6000 API）
+            // ------------------------------------------------------
+            Debug.Log("[Wizard] Setting LightingSettings → Medium");
+
+            var lighting = Lightmapping.lightingSettings;
+
+            if (lighting == null)
+            {
+                lighting = new LightingSettings();
+                Lightmapping.lightingSettings = lighting;
+            }
+
+            lighting.bakeResolution = 40f;
+            lighting.indirectResolution = 2f;
+
+            lighting.denoiserTypeDirect = LightingSettings.DenoiserType.Optix;
+            lighting.denoiserTypeIndirect = LightingSettings.DenoiserType.Optix;
+            lighting.denoiserTypeAO = LightingSettings.DenoiserType.Optix;
+
+            lighting.mixedBakeMode = MixedLightingMode.Shadowmask;
+            lighting.realtimeGI = true;
+            lighting.bakedGI = true;
+
+            // ------------------------------------------------------
+            // 4. Reflection Probe → Skybox 128
+            // ------------------------------------------------------
+            Debug.Log("[Wizard] Setting ReflectionProbe → Skybox 128");
+
+            RenderSettings.defaultReflectionMode = DefaultReflectionMode.Skybox;
+            RenderSettings.defaultReflectionResolution = 128;
+            RenderSettings.reflectionBounces = 1;
+            RenderSettings.reflectionIntensity = 1.0f;
+
+            // ------------------------------------------------------
+            // 5. 保存のみ（再インポート無し）
+            // ------------------------------------------------------
             AssetDatabase.SaveAssets();
+
+            Debug.Log("[Wizard] Settings applied.");
+
         }
         catch (Exception ex)
         {
-            Debug.LogError("設定変更中にエラー:\n" + ex.Message);
+            Debug.LogError("[Wizard] Failed to apply project settings:\n" + ex);
         }
     }
 
-    // ------------------------------------------------------------------
-    // ★ Unity 再起動
     // ------------------------------------------------------------------
     private void RestartUnity()
     {
