@@ -2,16 +2,12 @@
   "name": "jp.vrugd.vket.setup",
   "version": "1.0.0",
   "displayName": "Vket Cloud Setup Wizard",
-  "description": "Setup wizard for Vket Cloud SDK including Unity version validation, manifest auto-modification, and environment setup.",
+  "description": "Setup wizard for Vket Cloud SDK including Unity version checks and manifest auto modifications.",
   "unity": "2022.3",
-  "author": {
-    "name": "VRUGD",
-    "url": "https://vrugd.jp"
+  "dependencies": {
+    "com.unity.nuget.newtonsoft-json": "3.2.1"
   },
-  "keywords": [
-    "vket",
-    "cloud",
-    "wizard",
-    "setup"
-  ]
+  "author": {
+    "name": "VRUGD"
+  }
 }
