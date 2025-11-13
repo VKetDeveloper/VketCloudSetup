@@ -15,7 +15,7 @@ public class VketCloudSDKWizard : EditorWindow
     private const string RegistryScope = "com.hikky.vketcloudsdk-install-wizard";
 
     private const string PackageName = "com.hikky.vketcloudsdk-install-wizard";
-    private const string RequiredPackageVersion = "1.0.0";
+    private const string RequiredPackageVersion = "4.0.0";
 
     // Unity 6 固定（表示用）
     private const string RequiredUnityVersionDisplay = "Unity 6.0.0f1 以上";
@@ -353,10 +353,23 @@ public class VketCloudSDKWizard : EditorWindow
                     File.WriteAllText(manifestPath, manifestJson.ToString());
                     AssetDatabase.Refresh();
                     registryOK = true;
+
+                    // ★ Registry 追加後に Unity 再起動ダイアログ
+                    bool restart = EditorUtility.DisplayDialog(
+                        "Unity を再起動しますか？",
+                        "Scoped Registry を追加しました。\nUnity を再起動しないと Package Manager に反映されません。\n\n今すぐ Unity を再起動しますか？",
+                        "再起動する",
+                        "キャンセル"
+                    );
+
+                    if (restart)
+                    {
+                        RestartUnity();
+                    }
                 }
                 catch (Exception ex)
                 {
-                    ShowError("Scoped Registry の追加中にエラーが発生:\n" + ex.Message);
+                    ShowError("Scoped Registry の追加中にエラーが発生しました:\n" + ex.Message);
                 }
             }
         }
@@ -564,5 +577,17 @@ public class VketCloudSDKWizard : EditorWindow
     private void ShowError(string msg)
     {
         EditorUtility.DisplayDialog("エラー", msg, "OK");
+    }
+
+    private void RestartUnity()
+    {
+        // 現在のプロジェクトパス
+        string projectPath = Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
+
+        // 変更を保存
+        AssetDatabase.SaveAssets();
+
+        // Unity 再起動（同じプロジェクトを開き直し）
+        EditorApplication.OpenProject(projectPath);
     }
 }
