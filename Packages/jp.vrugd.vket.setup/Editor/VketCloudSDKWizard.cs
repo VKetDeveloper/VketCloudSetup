@@ -8,7 +8,7 @@ using Newtonsoft.Json.Linq;
 public class VketCloudSDKWizard : EditorWindow
 {
     // ------------------------------------------------------------------
-    // 定数（★ここは要求通り一切変更していません）
+    // 定数
     // ------------------------------------------------------------------
     private const string RegistryName = "Vket Cloud SDK Install Wizard";
     private const string RegistryURL = "https://registry.npmjs.com";
@@ -23,9 +23,9 @@ public class VketCloudSDKWizard : EditorWindow
     // ------------------------------------------------------------------
     // ステップ管理
     // ------------------------------------------------------------------
-    private int step = 0; // 0: Unity, 1: Registry, 2: Package, 3: Finish
+    private int step = 0;
 
-    // 状態フラグ
+    // 状態
     private bool unityVersionOK = false;
     private bool registryOK = false;
     private bool packageOK = false;
@@ -38,7 +38,7 @@ public class VketCloudSDKWizard : EditorWindow
     private JObject manifestJson;
 
     // ------------------------------------------------------------------
-    // UI スタイル
+    // UI スタイル（OnGUI 内で初期化）
     // ------------------------------------------------------------------
     private GUIStyle titleStyle;
     private GUIStyle boxStyle;
@@ -48,21 +48,17 @@ public class VketCloudSDKWizard : EditorWindow
     private GUIStyle badgeOK;
     private GUIStyle badgeNG;
 
-    // ------------------------------------------------------------------
-    // アイコン
-    // ------------------------------------------------------------------
     private Texture2D iconCheck;
     private Texture2D iconWarning;
 
+    private bool guiInitialized = false;
+
     // ------------------------------------------------------------------
-    // スピナー（プログレスアニメーション）
+    // スピナー / 完了アニメ
     // ------------------------------------------------------------------
     private int spinnerIndex = 0;
     private double lastSpinnerTime = 0f;
 
-    // ------------------------------------------------------------------
-    // 完了アニメ（Lottie風）
-    // ------------------------------------------------------------------
     private bool completeAnimPlaying = false;
     private double completeAnimStartTime = 0f;
 
@@ -77,23 +73,24 @@ public class VketCloudSDKWizard : EditorWindow
     }
 
     // ------------------------------------------------------------------
-    // ライフサイクル
+    // OnEnable（GUI を触らない）
     // ------------------------------------------------------------------
     private void OnEnable()
     {
         manifestPath = Path.Combine(Application.dataPath, "../Packages/manifest.json");
         LoadManifestJson();
-        SetupStyles();
-        LoadIcons();
 
-        // Unity 6 以外なら一度だけ警告
+        // Unity 6 以外の場合の警告
         if (!IsUnity6OrNewer() && !unityWarningShown)
         {
             unityWarningShown = true;
-            ShowError("このウィザードは Unity 6 以降でのみサポートされています。\n現在の Unity: " + Application.unityVersion);
+            ShowError("このウィザードは Unity 6 以降のみサポートされています。\n現在の Unity: " + Application.unityVersion);
         }
     }
 
+    // ------------------------------------------------------------------
+    // manifest.json 読み込み
+    // ------------------------------------------------------------------
     private void LoadManifestJson()
     {
         try
@@ -116,9 +113,12 @@ public class VketCloudSDKWizard : EditorWindow
         }
     }
 
-    private void SetupStyles()
+    // ------------------------------------------------------------------
+    // GUI 初期化
+    // ------------------------------------------------------------------
+    private void InitGUI()
     {
-        // タイトルバー
+        // タイトル
         titleStyle = new GUIStyle(EditorStyles.boldLabel)
         {
             fontSize = 20,
@@ -126,20 +126,20 @@ public class VketCloudSDKWizard : EditorWindow
             normal = { textColor = Color.white }
         };
 
-        // カードボックス
+        // カード
         boxStyle = new GUIStyle("HelpBox")
         {
             padding = new RectOffset(16, 16, 16, 16),
             margin = new RectOffset(10, 10, 10, 10)
         };
 
-        // ステップラベル
+        // ステップ
         stepLabelStyle = new GUIStyle(EditorStyles.boldLabel)
         {
             fontSize = 16
         };
 
-        // Primary Button
+        // Primary ボタン
         buttonPrimary = new GUIStyle(GUI.skin.button)
         {
             fontSize = 14,
@@ -149,13 +149,12 @@ public class VketCloudSDKWizard : EditorWindow
         buttonPrimary.normal.background = MakeTex(4, 4, new Color(0.35f, 0.45f, 1f));
         buttonPrimary.hover.background = MakeTex(4, 4, new Color(0.45f, 0.55f, 1f));
 
-        // Secondary Button
+        // Secondary
         buttonSecondary = new GUIStyle(GUI.skin.button)
         {
             fontSize = 14,
         };
 
-        // バッジ
         badgeOK = new GUIStyle(EditorStyles.boldLabel)
         {
             normal = { textColor = new Color(0.15f, 0.65f, 0.2f) }
@@ -165,10 +164,8 @@ public class VketCloudSDKWizard : EditorWindow
         {
             normal = { textColor = new Color(0.9f, 0.2f, 0.2f) }
         };
-    }
 
-    private void LoadIcons()
-    {
+        // アイコン
         iconCheck = EditorGUIUtility.IconContent("TestPassed").image as Texture2D;
         if (iconCheck == null)
             iconCheck = EditorGUIUtility.IconContent("Collab.Check").image as Texture2D;
@@ -186,45 +183,60 @@ public class VketCloudSDKWizard : EditorWindow
     }
 
     // ------------------------------------------------------------------
-    // GUI
+    // OnGUI（GUI 安全化済）
     // ------------------------------------------------------------------
     private void OnGUI()
     {
-        DrawHeader();
-
-        GUILayout.Space(10);
-
-        GUILayout.BeginVertical(boxStyle);
-        if (manifestLoadFailed)
+        // GUI 初期化（安全）
+        if (!guiInitialized)
         {
-            EditorGUILayout.HelpBox("manifest.json を読み込めないため、セットアップを続行できません。", MessageType.Error);
+            InitGUI();
+            guiInitialized = true;
         }
-        else
+
+        // 破壊されたレイアウトでクラッシュしないよう保護
+        try
         {
-            switch (step)
+            DrawHeader();
+
+            GUILayout.Space(10);
+
+            GUILayout.BeginVertical(boxStyle);
+            if (manifestLoadFailed)
             {
-                case 0: DrawStep1_UnityCheck(); break;
-                case 1: DrawStep2_Registry(); break;
-                case 2: DrawStep3_Package(); break;
-                case 3: DrawStep4_Finish(); break;
+                EditorGUILayout.HelpBox("manifest.json を読み込めません。", MessageType.Error);
             }
-        }
-        GUILayout.EndVertical();
+            else
+            {
+                switch (step)
+                {
+                    case 0: DrawStep1_UnityCheck(); break;
+                    case 1: DrawStep2_Registry(); break;
+                    case 2: DrawStep3_Package(); break;
+                    case 3: DrawStep4_Finish(); break;
+                }
+            }
+            GUILayout.EndVertical();
 
-        GUILayout.FlexibleSpace();
-        DrawStepButtons();
+            GUILayout.FlexibleSpace();
+            DrawStepButtons();
+        }
+        catch (Exception e)
+        {
+            EditorGUILayout.HelpBox("GUI Error: " + e.Message, MessageType.Error);
+        }
 
         if (completeAnimPlaying || step < 3)
-        {
             Repaint();
-        }
     }
 
+    // ------------------------------------------------------------------
+    // Header
+    // ------------------------------------------------------------------
     private void DrawHeader()
     {
         Rect rect = GUILayoutUtility.GetRect(0, 40, GUILayout.ExpandWidth(true));
         EditorGUI.DrawRect(rect, new Color(0.35f, 0.45f, 1f));
-
         GUI.Label(rect, "Vket Cloud SDK Install Wizard", titleStyle);
 
         if (step < 3 && !manifestLoadFailed)
@@ -250,11 +262,12 @@ public class VketCloudSDKWizard : EditorWindow
 
         var content = EditorGUIUtility.IconContent($"WaitSpin{spinnerIndex:00}");
         if (content != null && content.image != null)
-        {
             GUI.DrawTexture(rect, content.image, ScaleMode.ScaleToFit, true);
-        }
     }
 
+    // ------------------------------------------------------------------
+    // STEP 1
+    // ------------------------------------------------------------------
     private void DrawStep1_UnityCheck()
     {
         GUILayout.Label("Step 1 / 4 : Unity Version Check", stepLabelStyle);
@@ -286,15 +299,13 @@ public class VketCloudSDKWizard : EditorWindow
     private bool IsUnity6OrNewer()
     {
         var v = Application.unityVersion;
-
         if (v.StartsWith("6000.")) return true;
         if (v.StartsWith("6.0.")) return true;
-
         return false;
     }
 
     // ------------------------------------------------------------------
-    // STEP 2 : Scoped Registry
+    // STEP 2
     // ------------------------------------------------------------------
     private void DrawStep2_Registry()
     {
@@ -345,14 +356,14 @@ public class VketCloudSDKWizard : EditorWindow
                 }
                 catch (Exception ex)
                 {
-                    ShowError("Scoped Registry の追加中にエラーが発生しました:\n" + ex.Message);
+                    ShowError("Scoped Registry の追加中にエラーが発生:\n" + ex.Message);
                 }
             }
         }
     }
 
     // ------------------------------------------------------------------
-    // STEP 3 : Package Install / Update
+    // STEP 3
     // ------------------------------------------------------------------
     private void DrawStep3_Package()
     {
@@ -403,7 +414,7 @@ public class VketCloudSDKWizard : EditorWindow
                 }
                 catch (Exception ex)
                 {
-                    ShowError("SDK インストール中にエラーが発生しました:\n" + ex.Message);
+                    ShowError("SDK インストール中にエラー:\n" + ex.Message);
                 }
             }
         }
@@ -411,7 +422,7 @@ public class VketCloudSDKWizard : EditorWindow
         {
             EditorGUILayout.BeginHorizontal();
             GUILayout.Label(iconWarning, GUILayout.Width(20), GUILayout.Height(20));
-            GUILayout.Label($"現在のバージョン {installedVersion} は古いため、更新が必要です。", badgeNG);
+            GUILayout.Label($"現在のバージョン {installedVersion} は古いため更新が必要です。", badgeNG);
             EditorGUILayout.EndHorizontal();
 
             GUILayout.Space(8);
@@ -426,14 +437,14 @@ public class VketCloudSDKWizard : EditorWindow
                 }
                 catch (Exception ex)
                 {
-                    ShowError("SDK 更新中にエラーが発生しました:\n" + ex.Message);
+                    ShowError("SDK 更新中にエラー:\n" + ex.Message);
                 }
             }
         }
     }
 
     // ------------------------------------------------------------------
-    // STEP 4 : Finish + Lottie風アニメ
+    // STEP 4
     // ------------------------------------------------------------------
     private void DrawStep4_Finish()
     {
@@ -529,7 +540,7 @@ public class VketCloudSDKWizard : EditorWindow
     }
 
     // ------------------------------------------------------------------
-    // ユーティリティ
+    // Utils
     // ------------------------------------------------------------------
     private int ComparePackageVersion(string a, string b)
     {
