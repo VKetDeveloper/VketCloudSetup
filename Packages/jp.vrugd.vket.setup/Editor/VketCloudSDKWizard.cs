@@ -15,7 +15,7 @@ public class VketCloudSDKWizard : EditorWindow
     private const string RegistryScope = "com.hikky.vketcloudsdk-install-wizard";
 
     private const string PackageName = "com.hikky.vketcloudsdk-install-wizard";
-    private const string RequiredPackageVersion = "4.0.0";
+    private const string RequiredPackageVersion = "1.0.0";
 
     // Unity 6 固定（表示用）
     private const string RequiredUnityVersionDisplay = "Unity 6.0.0f1 以上";
