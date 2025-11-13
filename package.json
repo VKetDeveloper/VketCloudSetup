@@ -1,0 +1,13 @@
+{
+  "name": "jp.vrugd.vket.setup",
+  "version": "1.0.0",
+  "displayName": "VRUGD VketCloud Setup Tools",
+  "description": "VketCloud SDK 導入と設定を自動化する Unity エディタツールです。",
+  "unity": "6000.2",
+  "author": { "name": "VRUGD" },
+  "keywords": ["VketCloud","Setup","Automation","VRUGD"],
+  "category": "Editor",
+  "dependencies": {
+    "com.unity.nuget.newtonsoft-json": "3.2.1"
+  }
+}
